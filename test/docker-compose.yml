@@ -1,0 +1,106 @@
+services:
+  redis:
+    image: "redis:latest"
+    container_name: "redis"
+    ports:
+      - "6379:6379"
+
+  db:
+    image: postgres:16-bookworm
+    volumes:
+      - data:/var/lib/postgresql/data/
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+  api:
+    build: ./myapp
+    image: api:1.0.0
+    command: gunicorn myapp.wsgi:application --bind 0.0.0.0:8001 --access-logfile '-'
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
+      - CSRF_TRUSTED_ORIGINS=${CSRF_TRUSTED_ORIGINS}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+    volumes:
+      - static_volume:/usr/src/myapp/static
+    restart: unless-stopped
+    depends_on:
+      - db
+
+  adminer:
+    image: adminer
+    ports:
+      - "8080:8080"
+
+  api_comment:
+    build: ../fast-comment
+    image: api_comment:1.0.0
+    ports:
+      - "8002:8002"
+    volumes:
+      - .:/app
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  bot:
+    build: ../aiogram
+    container_name: aiogram_bot
+    env_file:
+      - .env
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+    volumes:
+      - .:/app
+    command: [ "python", "run.py" ]
+
+  celery:
+    build: ./myapp
+    image: celery:1.0.0
+    command: celery -A myapp worker --loglevel=info
+    depends_on:
+      - redis
+      - api
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - static_volume:/usr/src/myapp/static
+
+  celery_beat:
+    build: ./myapp
+    image: celery_beat:1.0.0
+    command: celery -A myapp beat --loglevel=info
+    depends_on:
+      - redis
+      - api
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - static_volume:/usr/src/myapp/static
+
+volumes:
+  data:
+  static_volume:

@@ -84,19 +84,6 @@ def user_login(request):
     else:
         return Response({"detail": "Неверные данные для входа."}, status=status.HTTP_401_UNAUTHORIZED)
 
-#@api_view(['PUT'])
-#def update_task(request, pk):
-#    try:
-#        task = Task.objects.get(pk=pk)
-#    except Task.DoesNotExist:
-#        return Response(status=status.HTTP_404_NOT_FOUND)
-
-#   serializer = TaskSerializer(task, data=request.data)
-#    if serializer.is_valid():
-#        serializer.save()
-#        return Response(serializer.data)
-#    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['DELETE'])
 @ratelimit(key='ip', rate='15/m', method='DELETE', block=True)

@@ -1,3 +1,5 @@
+import os
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -7,4 +9,4 @@ class Settings(BaseSettings):
     bot_token: str
     admin_ids: frozenset[int] = frozenset({42, 3595399})
 
-settings = Settings(bot_token="")
+settings = Settings(bot_token="os.environ.get("BOT_TOKEN"))
